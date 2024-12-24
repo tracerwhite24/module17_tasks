@@ -28,6 +28,23 @@ async def user_by_id(db: Annotated[Session, Depends(get_db)], user_id: int):
     return user
 
 
+@router.get("/user_id/tasks")
+async def task_by_user_id(db: Annotated[Session, Depends(get_db)], user_id: int):
+    user = db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This user is not found"
+        )
+    task = db.scalar(select(Task).where(Task.user_id == user_id))
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task was not found"
+        )
+    return task
+
+
 @router.post("/create")
 async def create_user(db: Annotated[Session, Depends(get_db)], create_users: CreateUser):
     try:
@@ -89,6 +106,9 @@ async def delete_user(db: Annotated[Session, Depends(get_db)], user_id: int):
             detail="There is not user found"
         )
     else:
+        task = db.scalar(select(Task).where(Task.user_id == user_id))
+        if task is not None:
+            db.execute(delete(Task).where(Task.user_id == user_id))
         db.execute(delete(User).where(User.id == user_id))
         db.commit()
         return {
